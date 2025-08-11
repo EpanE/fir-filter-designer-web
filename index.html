@@ -1,32 +1,4 @@
 <!doctype html>
-        <div>
-          <label>Filter Length (taps)</label>
-          <input id="numtaps" type="number" value="64" />
-        </div>
-        <div>
-          <label>Shift Samples</label>
-          <input id="shift" type="number" value="0" />
-        </div>
-        <div>
-          <label>Response Type</label>
-          <select id="response">
-            <option>Impulse</option>
-            <option>Step</option>
-            <option>Both</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="grid cols-4" style="margin-top:10px;">
-        <div>
-          <label>Low Frequency (Hz)</label>
-          <input id="lowcut" type="number" value="10" step="any" />
-        </div>
-        <div>
-          <label>High Frequency (Hz)</label>
-          <input id="highcut" type="number" value="20" step="any" />
-        </div>
-        <div>
           <label>Filter Type</label>
           <select id="ftype">
             <option>Lowpass</option>
@@ -37,7 +9,19 @@
         </div>
         <div>
           <label>Window Function</label>
-          <select id="wtype"></select>
+          <select id="wtype">
+            <option>Hamming</option>
+            <option>Rectangular</option>
+            <option>Triangular</option>
+            <option>Bartlett</option>
+            <option>Sine</option>
+            <option>Hann</option>
+            <option>Blackman</option>
+            <option>Nuttall</option>
+            <option>BlackmanNuttall</option>
+            <option>BlackmanHarris</option>
+            <option>FlatTop</option>
+          </select>
         </div>
       </div>
 
@@ -57,7 +41,7 @@
       <div class="status" id="status">Ready. Set parameters and click "Design Filter".</div>
     </div>
 
-    <div class="plots" id="plots">
+    <div class="plots" id="plots" style="display:none;">
       <div class="plot"><img id="plot1" alt="Time/Impulse/Step" /></div>
       <div class="plot"><img id="plot2" alt="Window (time)" /></div>
       <div class="plot"><img id="plot3" alt="Filter frequency response" /></div>
