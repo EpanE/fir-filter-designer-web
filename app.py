@@ -1,4 +1,19 @@
 from js import document, URL, Blob
+        render_to_imgs(figs)
+
+        current = {
+            'taps': taps,
+            'fs': fs,
+            'numtaps': numtaps,
+            'filter_type': ftype,
+            'window_type': wlabel,
+            'lowcut': lowcut,
+            'highcut': highcut,
+            'figs': figs
+        }
+        document.getElementById('downloadCSV').disabled = False
+        document.getElementById('downloadPlot').disabled = False
+        set_status(f"Filter: {ftype}, {numtaps} taps, Window: {wlabel}")
 
     except Exception as e:
         set_status(f"Error: {e}")
