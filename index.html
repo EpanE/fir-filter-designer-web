@@ -1,4 +1,107 @@
 <!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FIR Filter Designer (Web)</title>
+  <link rel="stylesheet" href="https://pyscript.net/latest/pyscript.css" />
+  <script defer src="https://pyscript.net/latest/pyscript.js"></script>
+  <style>
+    :root{
+      --bg:#0b1220; --card:#121a2b; --muted:#94a3b8; --text:#e2e8f0; --accent:#60a5fa;
+    }
+    html,body{height:100%}
+    body{margin:0;background:var(--bg);color:var(--text);font:16px/1.45 system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+    .wrap{max-width:1200px;margin:32px auto;padding:0 16px}
+    .title{font-size:28px;font-weight:700;letter-spacing:.2px;margin:0 0 8px}
+    .sub{color:var(--muted);margin:0 0 20px}
+    .card{background:var(--card);border:1px solid rgba(255,255,255,.06);border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.3)}
+    .grid{display:grid;gap:12px}
+    .grid.cols-4{grid-template-columns:repeat(4,minmax(0,1fr))}
+    label{display:block;font-size:12px;color:var(--muted);margin:0 0 6px}
+    input,select{width:100%;box-sizing:border-box;background:#0e1626;border:1px solid rgba(255,255,255,.08);color:var(--text);border-radius:10px;padding:10px 12px}
+    input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(96,165,250,.2)}
+    .controls{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+    button{background:linear-gradient(180deg,#1e3a8a,#1d4ed8);border:none;color:#fff;padding:10px 14px;border-radius:12px;cursor:pointer;font-weight:600}
+    button.secondary{background:#0e1626;border:1px solid rgba(255,255,255,.1)}
+    button:disabled{opacity:.5;cursor:not-allowed}
+    .checkbox{display:flex;align-items:center;gap:8px;margin-left:auto}
+    .status{color:var(--muted);margin-top:8px;font-size:14px}
+    .plots{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+    .plot{background:#0e1626;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:8px}
+    .plot img{width:100%;height:auto;display:block;border-radius:8px}
+    .tooltipbar{display:flex;align-items:center;gap:8px;margin-top:10px;color:#c7d2fe}
+    .tiplabel{opacity:.7}
+    .tiptext{opacity:.95}
+    
+    /* Responsive design for mobile */
+    @media (max-width: 768px) {
+      .grid.cols-4 { grid-template-columns: 1fr 1fr; }
+      .plots { grid-template-columns: 1fr; }
+      .controls { flex-direction: column; align-items: stretch; }
+      .checkbox { margin-left: 0; justify-content: center; }
+    }
+    
+    @media (max-width: 480px) {
+      .grid.cols-4 { grid-template-columns: 1fr; }
+      .wrap { margin: 16px auto; padding: 0 8px; }
+      .title { font-size: 24px; }
+    }
+  </style>
+  <py-config>
+    version = "2024.9.1"
+    packages = ["numpy","scipy","matplotlib","pillow"]
+    [[fetch]]
+    from = "."
+    files = ["app.py"]
+  </py-config>
+</head>
+<body>
+  <py-loader>
+    <div style="padding:16px; text-align:center; color:#94a3b8;">
+      <div style="margin-bottom:10px;">🔧 Loading Python runtime (PyScript)...</div>
+      <div style="font-size:14px;">First load may take 10–20s on slow networks.</div>
+    </div>
+  </py-loader>
+  
+  <div class="wrap">
+    <h1 class="title">FIR Filter Designer (Web)</h1>
+    <p class="sub">Browser-based FIR filter tool. Design, visualize, and export — no installation, works on GitHub Pages.</p>
+
+    <div class="card">
+      <div class="grid cols-4">
+        <div>
+          <label>Sampling Frequency (Hz)</label>
+          <input id="fs" type="number" value="100" step="any" />
+        </div>
+        <div>
+          <label>Filter Length (taps)</label>
+          <input id="numtaps" type="number" value="64" />
+        </div>
+        <div>
+          <label>Shift Samples</label>
+          <input id="shift" type="number" value="0" />
+        </div>
+        <div>
+          <label>Response Type</label>
+          <select id="response">
+            <option>Impulse</option>
+            <option>Step</option>
+            <option>Both</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid cols-4" style="margin-top:10px;">
+        <div>
+          <label>Low Frequency (Hz)</label>
+          <input id="lowcut" type="number" value="10" step="any" />
+        </div>
+        <div>
+          <label>High Frequency (Hz)</label>
+          <input id="highcut" type="number" value="20" step="any" />
+        </div>
+        <div>
           <label>Filter Type</label>
           <select id="ftype">
             <option>Lowpass</option>
@@ -50,6 +153,300 @@
     </div>
   </div>
 
-  <py-script src="app.py"></py-script>
+  <py-script>
+from js import document, URL, Blob
+import numpy as np
+from scipy.signal import firwin, freqz, get_window, lfilter
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+from io import BytesIO
+from PIL import Image, ImageOps
+
+# === Window mapping & tooltips ===
+window_map = {
+    "Hamming": "hamming",
+    "Rectangular": "boxcar",
+    "Triangular": "triang",
+    "Bartlett": "bartlett",
+    "Sine": "sine",
+    "Hann": "hann",
+    "Blackman": "blackman",
+    "Nuttall": "nuttall",
+    "BlackmanNuttall": "blackmannuttall",
+    "BlackmanHarris": "blackmanharris",
+    "FlatTop": "flattop"
+}
+
+window_tooltips = {
+    "Hamming": "Hamming: Good frequency resolution, reduced side lobes",
+    "Rectangular": "Rectangular (Boxcar): Sharpest time domain, worst frequency domain",
+    "Triangular": "Triangular: Better sidelobe rejection than rectangular",
+    "Bartlett": "Bartlett: Triangular window that touches zero at both ends",
+    "Sine": "Sine: Smooth window using sine shape",
+    "Hann": "Hann: Basic cosine window, balanced performance",
+    "Blackman": "Blackman: Higher sidelobe attenuation",
+    "Nuttall": "Nuttall: Low sidelobe leakage",
+    "BlackmanNuttall": "Blackman-Nuttall: Improved Blackman variation",
+    "BlackmanHarris": "Blackman-Harris: Similar to Blackman-Nuttall",
+    "FlatTop": "FlatTop: Very low passband ripple"
+}
+
+# Populate window selector + bind tooltip
+wsel = document.getElementById('wtype')
+for k in window_map.keys():
+    opt = document.createElement('option')
+    opt.text = k
+    wsel.add(opt)
+wsel.value = 'Hamming'
+
+def update_tooltip(*_):
+    label = document.getElementById('wtype').value
+    document.getElementById('wtip').innerText = window_tooltips.get(label, '')
+
+wsel.addEventListener('change', update_tooltip)
+update_tooltip()
+
+current = None  # holds last design
+
+# --- small DOM helpers ---
+
+def set_status(msg: str):
+    document.getElementById('status').innerText = msg
+
+
+def _img_url_from_fig(fig):
+    buf = BytesIO()
+    fig.savefig(buf, dpi=140, bbox_inches='tight')
+    buf.seek(0)
+    blob = Blob.new([buf.getvalue()], {"type": "image/png"})
+    return URL.createObjectURL(blob)
+
+
+def render_to_imgs(figs):
+    ids = ['plot1','plot2','plot3','plot4','plot5']
+    for i, fig in enumerate(figs):
+        url = _img_url_from_fig(fig)
+        document.getElementById(ids[i]).src = url
+    # show plots grid on first render
+    document.getElementById('plots').style.display = 'grid'
+
+
+def download_bytes(filename: str, bytes_data: bytes, mime: str):
+    blob = Blob.new([bytes_data], {"type": mime})
+    href = URL.createObjectURL(blob)
+    a = document.createElement('a')
+    a.href = href
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(href)
+
+# --- controls ---
+
+def reset_defaults(event=None):
+    document.getElementById('fs').value = '100'
+    document.getElementById('numtaps').value = '64'
+    document.getElementById('shift').value = '0'
+    document.getElementById('lowcut').value = '10'
+    document.getElementById('highcut').value = '20'
+    document.getElementById('ftype').value = 'Lowpass'
+    document.getElementById('wtype').value = 'Hamming'
+    document.getElementById('response').value = 'Impulse'
+    document.getElementById('showPhase').checked = False
+    update_tooltip()
+    set_status('Reset to defaults. Ready.')
+
+
+def design(event=None):
+    global current
+    try:
+        fs = float(document.getElementById('fs').value)
+        numtaps = int(document.getElementById('numtaps').value)
+        shift = int(document.getElementById('shift').value)
+        lowcut = float(document.getElementById('lowcut').value)
+        highcut = float(document.getElementById('highcut').value)
+        ftype = document.getElementById('ftype').value
+        wlabel = document.getElementById('wtype').value
+        wtype = window_map.get(wlabel, 'hamming')
+        response = document.getElementById('response').value
+        show_phase = bool(document.getElementById('showPhase').checked)
+
+        # Validation
+        if fs <= 0:
+            raise ValueError('Sampling frequency must be positive.')
+        if numtaps < 2:
+            raise ValueError('Filter length should be 2 or greater.')
+        if lowcut <= 0 or highcut <= 0:
+            raise ValueError('Frequencies must be greater than 0 Hz.')
+        if highcut >= fs/2 or lowcut >= fs/2:
+            raise ValueError(f'Cutoffs must be < Nyquist ({fs/2} Hz).')
+        if (ftype in ['Bandpass','Bandstop']) and (lowcut >= highcut):
+            raise ValueError('Low frequency must be less than high frequency for band filters.')
+
+        # Design taps
+        if ftype == 'Lowpass':
+            taps = firwin(numtaps, cutoff=highcut, window=wtype, fs=fs, pass_zero='lowpass')
+        elif ftype == 'Highpass':
+            taps = firwin(numtaps, cutoff=lowcut, window=wtype, fs=fs, pass_zero='highpass')
+        elif ftype == 'Bandpass':
+            taps = firwin(numtaps, cutoff=[lowcut, highcut], window=wtype, fs=fs, pass_zero=False)
+        elif ftype == 'Bandstop':
+            taps = firwin(numtaps, cutoff=[lowcut, highcut], window=wtype, fs=fs, pass_zero=True)
+        else:
+            raise ValueError('Invalid filter type')
+
+        if shift != 0:
+            n = np.arange(numtaps)
+            taps = (taps * np.exp(1j * 2 * np.pi * shift * n / numtaps)).real
+
+        window_vals = get_window(wtype, numtaps, fftbins=False)
+
+        # Time vectors
+        t = np.arange(numtaps)/fs
+
+        # Step response
+        step_input = np.ones(numtaps*3)
+        step_response = lfilter(taps, [1.0], step_input)
+        step_time = np.arange(len(step_response))/fs
+
+        # Frequency responses
+        w, h_filter = freqz(taps, worN=8192, fs=fs)
+        w_win, h_window = freqz(window_vals, worN=8192, fs=fs)
+
+        # Example signal: 5 Hz + 25 Hz + small noise (so LP/HP/BP effects are visible)
+        dur = 2.0
+        N = int(fs*dur)
+        tt = np.arange(N)/fs
+        x = 0.9*np.sin(2*np.pi*5*tt) + 0.4*np.sin(2*np.pi*25*tt) + 0.05*np.random.default_rng(0).normal(size=N)
+        y = lfilter(taps, [1.0], x)
+
+        figs = []
+        # Plot 1: Impulse/Step
+        fig1, ax1 = plt.subplots(figsize=(5,3))
+        if response in ['Impulse','Both']:
+            ax1.stem(t, taps, basefmt=" ", use_line_collection=True)
+            ax1.set_title('Impulse Response')
+        elif response == 'Step':
+            ax1.plot(step_time[:numtaps*2], step_response[:numtaps*2])
+            ax1.set_title('Step Response')
+        ax1.set_xlabel('Time (s)'); ax1.set_ylabel('Amplitude'); ax1.grid(True)
+        figs.append(fig1)
+
+        # Plot 2: Window (time)
+        fig2, ax2 = plt.subplots(figsize=(5,3))
+        ax2.plot(t, window_vals)
+        ax2.set_title(f'{wlabel} Window')
+        ax2.set_xlabel('Time (s)'); ax2.set_ylabel('Amplitude'); ax2.grid(True)
+        figs.append(fig2)
+
+        # Plot 3: Filter freq response
+        fig3, ax3 = plt.subplots(figsize=(5,3))
+        ax3.plot(w, 20*np.log10(np.abs(h_filter)+1e-10))
+        ax3.set_title(f'{ftype} Filter Frequency Response')
+        ax3.set_xlabel('Frequency (Hz)'); ax3.set_ylabel('Magnitude (dB)')
+        ax3.set_ylim([-80,5]); ax3.grid(True)
+        if ftype == 'Lowpass':
+            ax3.axvline(x=highcut, linestyle='--', alpha=.7)
+        elif ftype == 'Highpass':
+            ax3.axvline(x=lowcut, linestyle='--', alpha=.7)
+        elif ftype in ['Bandpass','Bandstop']:
+            ax3.axvline(x=lowcut, linestyle='--', alpha=.7)
+            ax3.axvline(x=highcut, linestyle='--', alpha=.7)
+        if show_phase:
+            ax3b = ax3.twinx()
+            phase = np.unwrap(np.angle(h_filter))
+            ax3b.plot(w, phase, linestyle='--', alpha=.5)
+            ax3b.set_ylabel('Phase (rad)')
+        figs.append(fig3)
+
+        # Plot 4: Window freq response
+        fig4, ax4 = plt.subplots(figsize=(5,3))
+        ax4.plot(w_win, 20*np.log10(np.abs(h_window)+1e-10))
+        ax4.set_title('Window Function Frequency Response')
+        ax4.set_xlabel('Frequency (Hz)'); ax4.set_ylabel('Magnitude (dB)')
+        ax4.set_ylim([-100,10]); ax4.grid(True)
+        figs.append(fig4)
+
+        # Plot 5: Example signal (raw vs filtered)
+        fig5, ax5 = plt.subplots(figsize=(5,3))
+        ax5.plot(tt, x, linewidth=1, label='Input')
+        ax5.plot(tt, y, linewidth=1, alpha=.9, label='Filtered')
+        ax5.set_title('Example Signal: Raw vs Filtered')
+        ax5.set_xlabel('Time (s)'); ax5.set_ylabel('Amplitude'); ax5.grid(True)
+        ax5.legend()
+        figs.append(fig5)
+
+        render_to_imgs(figs)
+
+        current = {
+            'taps': taps,
+            'fs': fs,
+            'numtaps': numtaps,
+            'filter_type': ftype,
+            'window_type': wlabel,
+            'lowcut': lowcut,
+            'highcut': highcut,
+            'figs': figs
+        }
+        document.getElementById('downloadCSV').disabled = False
+        document.getElementById('downloadPlot').disabled = False
+        set_status(f"Filter: {ftype}, {numtaps} taps, Window: {wlabel}")
+
+    except Exception as e:
+        set_status(f"Error: {e}")
+
+
+def export_csv(event=None):
+    if not current:
+        set_status('No filter yet. Design first.'); return
+    import csv
+    from io import StringIO
+    sio = StringIO()
+    writer = csv.writer(sio)
+    writer.writerow(['index','coefficient'])
+    for i, c in enumerate(current['taps']):
+        writer.writerow([i, c])
+    meta = (
+        f"Filter Type: {current['filter_type']}\n"
+        f"Window Type: {current['window_type']}\n"
+        f"Sampling Frequency: {current['fs']} Hz\n"
+        f"Filter Length: {current['numtaps']}\n"
+        f"Low Cutoff: {current['lowcut']} Hz\n"
+        f"High Cutoff: {current['highcut']} Hz\n"
+    )
+    download_bytes('filter_coefficients.csv', sio.getvalue().encode('utf-8'), 'text/csv')
+    download_bytes('filter_meta.txt', meta.encode('utf-8'), 'text/plain')
+
+
+def export_plots(event=None):
+    if not current:
+        set_status('No plots yet. Design first.'); return
+    # Stack all figures vertically into one PNG
+    imgs = []
+    for fig in current['figs']:
+        buf = BytesIO(); fig.savefig(buf, dpi=140, bbox_inches='tight'); buf.seek(0)
+        imgs.append(Image.open(buf).convert('RGBA'))
+    widths = [im.width for im in imgs]
+    max_w = max(widths)
+    total_h = sum(im.height for im in imgs)
+    out = Image.new('RGBA', (max_w, total_h), (0,0,0,0))
+    y=0
+    for im in imgs:
+        if im.width < max_w:
+            im = ImageOps.expand(im, border=(0,0,max_w-im.width,0), fill=(14,22,38,255))
+        out.paste(im, (0,y)); y += im.height
+    bio = BytesIO(); out.save(bio, format='PNG'); bio.seek(0)
+    download_bytes('fir_plots.png', bio.getvalue(), 'image/png')
+
+# Hook buttons
+_document = document
+_document.getElementById('designBtn').addEventListener('click', design)
+_document.getElementById('resetBtn').addEventListener('click', reset_defaults)
+_document.getElementById('downloadCSV').addEventListener('click', export_csv)
+_document.getElementById('downloadPlot').addEventListener('click', export_plots)
+
+# Initial defaults
+reset_defaults()
+  </py-script>
 </body>
 </html>
