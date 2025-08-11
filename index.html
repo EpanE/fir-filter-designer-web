@@ -1,0 +1,71 @@
+<!doctype html>
+        <div>
+          <label>Filter Length (taps)</label>
+          <input id="numtaps" type="number" value="64" />
+        </div>
+        <div>
+          <label>Shift Samples</label>
+          <input id="shift" type="number" value="0" />
+        </div>
+        <div>
+          <label>Response Type</label>
+          <select id="response">
+            <option>Impulse</option>
+            <option>Step</option>
+            <option>Both</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid cols-4" style="margin-top:10px;">
+        <div>
+          <label>Low Frequency (Hz)</label>
+          <input id="lowcut" type="number" value="10" step="any" />
+        </div>
+        <div>
+          <label>High Frequency (Hz)</label>
+          <input id="highcut" type="number" value="20" step="any" />
+        </div>
+        <div>
+          <label>Filter Type</label>
+          <select id="ftype">
+            <option>Lowpass</option>
+            <option>Highpass</option>
+            <option>Bandpass</option>
+            <option>Bandstop</option>
+          </select>
+        </div>
+        <div>
+          <label>Window Function</label>
+          <select id="wtype"></select>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button id="designBtn">Design Filter</button>
+        <button id="resetBtn" class="secondary">Reset Defaults</button>
+        <button id="downloadCSV" class="secondary" disabled>Export Coefficients (CSV)</button>
+        <button id="downloadPlot" class="secondary" disabled>Export Plots (PNG)</button>
+        <label class="checkbox"><input id="showPhase" type="checkbox"> Show Phase Response</label>
+      </div>
+
+      <div class="tooltipbar">
+        <span class="tiplabel">Window tip:</span>
+        <span id="wtip" class="tiptext">Hamming: Good frequency resolution, reduced side lobes</span>
+      </div>
+
+      <div class="status" id="status">Ready. Set parameters and click "Design Filter".</div>
+    </div>
+
+    <div class="plots" id="plots">
+      <div class="plot"><img id="plot1" alt="Time/Impulse/Step" /></div>
+      <div class="plot"><img id="plot2" alt="Window (time)" /></div>
+      <div class="plot"><img id="plot3" alt="Filter frequency response" /></div>
+      <div class="plot"><img id="plot4" alt="Window frequency response" /></div>
+      <div class="plot"><img id="plot5" alt="Example signal (raw vs filtered)" /></div>
+    </div>
+  </div>
+
+  <py-script src="app.py"></py-script>
+</body>
+</html>
