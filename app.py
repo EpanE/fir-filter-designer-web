@@ -8,6 +8,7 @@ from scipy.signal import firwin, freqz, get_window, lfilter
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import base64
 from io import BytesIO
 
 # Optional Pillow for combined plot export (falls back to individual PNGs if missing)
@@ -64,12 +65,11 @@ def set_status(msg: str) -> None:
 
 
 def _img_url_from_fig(fig) -> str:
-    """Convert a Matplotlib figure to a blob URL suitable for <img src>."""
+    """Return a data: URL (PNG) so <img src=...> always works in the browser."""
     buf = BytesIO()
     fig.savefig(buf, format="png", dpi=140, bbox_inches="tight", facecolor="white")
-    buf.seek(0)
-    blob = Blob.new([buf.getvalue()], {"type": "image/png"})
-    return URL.createObjectURL(blob)
+    b64 = base64.b64encode(buf.getvalue()).decode("ascii")
+    return f"data:image/png;base64,{b64}"
 
 
 def render_to_imgs(figs) -> None:
