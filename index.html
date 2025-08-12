@@ -53,8 +53,7 @@
   <py-config>
     version = "2024.9.1"
     packages = ["numpy","scipy","matplotlib","pillow"]
-    <!--[[fetch]] -->
-    files = ["./app.py"]
+    <!-- optional: plugins = [] -->
   </py-config>
 </head>
 <body>
@@ -155,6 +154,6 @@
   </div>
 
   <!-- Run ONLY the external Python (no inline Python here) -->
-  <py-script src="app.py?v=5"></py-script>
+  <py-script src="app.py?v=6"></py-script>
 </body>
 </html>
