@@ -46,5 +46,8 @@ _document.getElementById('resetBtn').addEventListener('click', reset_defaults)
 _document.getElementById('downloadCSV').addEventListener('click', export_csv)
 _document.getElementById('downloadPlot').addEventListener('click', export_plots)
 
-# Initial defaults
+# Set initial defaults
 reset_defaults()
+# Auto-render once so plots appear
+design()
+
