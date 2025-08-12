@@ -49,10 +49,11 @@
     }
   </style>
   <py-config>
+    version = "2024.9.1"
     packages = ["numpy","scipy","matplotlib","pillow"]
     [[fetch]]
     from = "."
-    files = ["app.py"]
+    files = ["./app.py"]
   </py-config>
 </head>
 <body>
@@ -142,9 +143,6 @@
     </div>
   </div>
 
-  <py-script>
-    # Import the main application module
-    import app
-  </py-script>
+  <py-script src="app.py"></py-script>
 </body>
 </html>
