@@ -52,6 +52,7 @@
   <!-- Tell PyScript to fetch and run app.py ONLY -->
   <py-config>
     version = "2024.9.1"
+    packages = ["numpy","scipy","matplotlib","pillow"]
     <!--[[fetch]] -->
     files = ["./app.py"]
   </py-config>
@@ -154,6 +155,6 @@
   </div>
 
   <!-- Run ONLY the external Python (no inline Python here) -->
-  <py-script src="app.py?v=4"></py-script>
+  <py-script src="app.py?v=5"></py-script>
 </body>
 </html>
