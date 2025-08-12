@@ -125,6 +125,13 @@ def reset_defaults(event=None) -> None:
 def design(event=None) -> None:
     global current
     try:
+        # clean up previous figs to prevent memory growth
+        if current and "figs" in current:
+            for _f in current["figs"]:
+                try:
+                    plt.close(_f)
+                except Exception:
+                    pass
         set_status("Designing filter…")
 
         fs = float(document.getElementById("fs").value)
