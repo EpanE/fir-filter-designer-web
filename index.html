@@ -4,12 +4,14 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>FIR Filter Designer (Web)</title>
+
+  <!-- PyScript runtime -->
   <link rel="stylesheet" href="https://pyscript.net/latest/pyscript.css" />
   <script defer src="https://pyscript.net/latest/pyscript.js"></script>
+
+  <!-- Inline styles (same design you have now) -->
   <style>
-    :root{
-      --bg:#0b1220; --card:#121a2b; --muted:#94a3b8; --text:#e2e8f0; --accent:#60a5fa;
-    }
+    :root{ --bg:#0b1220; --card:#121a2b; --muted:#94a3b8; --text:#e2e8f0; --accent:#60a5fa; }
     html,body{height:100%}
     body{margin:0;background:var(--bg);color:var(--text);font:16px/1.45 system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
     .wrap{max-width:1200px;margin:32px auto;padding:0 16px}
@@ -33,37 +35,36 @@
     .tooltipbar{display:flex;align-items:center;gap:8px;margin-top:10px;color:#c7d2fe}
     .tiplabel{opacity:.7}
     .tiptext{opacity:.95}
-    
-    /* Responsive design for mobile */
-    @media (max-width: 768px) {
-      .grid.cols-4 { grid-template-columns: 1fr 1fr; }
-      .plots { grid-template-columns: 1fr; }
-      .controls { flex-direction: column; align-items: stretch; }
-      .checkbox { margin-left: 0; justify-content: center; }
+    /* Responsive */
+    @media (max-width: 768px){
+      .grid.cols-4{grid-template-columns:1fr 1fr}
+      .plots{grid-template-columns:1fr}
+      .controls{flex-direction:column;align-items:stretch}
+      .checkbox{margin-left:0;justify-content:center}
     }
-    
-    @media (max-width: 480px) {
-      .grid.cols-4 { grid-template-columns: 1fr; }
-      .wrap { margin: 16px auto; padding: 0 8px; }
-      .title { font-size: 24px; }
+    @media (max-width: 480px){
+      .grid.cols-4{grid-template-columns:1fr}
+      .wrap{margin:16px auto;padding:0 8px}
+      .title{font-size:24px}
     }
   </style>
+
+  <!-- Tell PyScript to fetch and run app.py ONLY -->
   <py-config>
     version = "2024.9.1"
     packages = ["numpy","scipy","matplotlib","pillow"]
     [[fetch]]
-    from = "."
     files = ["./app.py"]
   </py-config>
 </head>
 <body>
   <py-loader>
     <div style="padding:16px; text-align:center; color:#94a3b8;">
-      <div style="margin-bottom:10px;">🔧 Loading Python runtime (PyScript)...</div>
+      <div style="margin-bottom:10px;">🔧 Loading Python runtime (PyScript)…</div>
       <div style="font-size:14px;">First load may take 10–20s on slow networks.</div>
     </div>
   </py-loader>
-  
+
   <div class="wrap">
     <h1 class="title">FIR Filter Designer (Web)</h1>
     <p class="sub">Browser-based FIR filter tool. Design, visualize, and export — no installation, works on GitHub Pages.</p>
@@ -113,7 +114,17 @@
         <div>
           <label>Window Function</label>
           <select id="wtype">
-            <!-- Options will be populated by Python -->
+            <option>Hamming</option>
+            <option>Rectangular</option>
+            <option>Triangular</option>
+            <option>Bartlett</option>
+            <option>Sine</option>
+            <option>Hann</option>
+            <option>Blackman</option>
+            <option>Nuttall</option>
+            <option>BlackmanNuttall</option>
+            <option>BlackmanHarris</option>
+            <option>FlatTop</option>
           </select>
         </div>
       </div>
@@ -128,10 +139,10 @@
 
       <div class="tooltipbar">
         <span class="tiplabel">Window tip:</span>
-        <span id="wtip" class="tiptext">Loading...</span>
+        <span id="wtip" class="tiptext">Hamming: Good frequency resolution, reduced side lobes</span>
       </div>
 
-      <div class="status" id="status">Loading Python runtime...</div>
+      <div class="status" id="status">Ready. Set parameters and click "Design Filter".</div>
     </div>
 
     <div class="plots" id="plots" style="display:none;">
@@ -143,6 +154,7 @@
     </div>
   </div>
 
+  <!-- Run ONLY the external Python (no inline Python here) -->
   <py-script src="app.py"></py-script>
 </body>
 </html>
