@@ -1,3 +1,3 @@
 # fir-filter-designer-web
-Research on Audio Signal Filtering Design
+Research on Finite Impulse Response Filter Design to visualize the theoratical learn in system design subjects
 
