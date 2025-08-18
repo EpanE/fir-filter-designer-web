@@ -1,6 +1,7 @@
 # app.py — FIR Filter Designer (PyScript / Pyodide)
 
 from js import document, URL, Blob, console
+from pyodide.ffi import create_proxy
 import asyncio, base64
 import numpy as np
 from scipy.signal import firwin, freqz, get_window, lfilter
@@ -8,9 +9,8 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from io import BytesIO
-from pyodide.ffi import create_proxy  # <-- keep event handlers alive
 
-# Optional Pillow (falls back to individual PNGs if missing)
+# Optional Pillow for combined plot export
 try:
     from PIL import Image
     PIL_AVAILABLE = True
@@ -18,6 +18,7 @@ except Exception:
     PIL_AVAILABLE = False
     console.log("Pillow not available; Export Plots will save individual PNGs.")
 
+# ---------- Window mapping & tooltips ----------
 window_map = {
     "Hamming": "hamming", "Rectangular": "boxcar", "Triangular": "triang",
     "Bartlett": "bartlett", "Sine": "sine", "Hann": "hann", "Blackman": "blackman",
@@ -39,9 +40,13 @@ window_tooltips = {
 }
 
 current = None
-_PROXIES = {}     # <-- strong refs to event proxies
+_PROXIES = {}        # strong refs to event proxies so they don't get GC'd
 _EVENTS_BOUND = False
 
+# Inputs we may mark invalid
+_INPUT_FIELDS = ["fs", "numtaps", "shift", "lowcut", "highcut"]
+
+# ---------- Utilities ----------
 def set_status(msg: str) -> None:
     try:
         document.getElementById("status").innerText = msg
@@ -49,6 +54,7 @@ def set_status(msg: str) -> None:
         console.log(f"Status update failed: {e}")
 
 def _img_url_from_fig(fig) -> str:
+    """Return a data: URL (PNG) so <img src=...> always works."""
     buf = BytesIO()
     fig.savefig(buf, format="png", dpi=140, bbox_inches="tight", facecolor="white")
     b64 = base64.b64encode(buf.getvalue()).decode("ascii")
@@ -63,9 +69,33 @@ def render_to_imgs(figs) -> None:
 def download_bytes(filename: str, data: bytes, mime: str) -> None:
     blob = Blob.new([data], {"type": mime})
     href = URL.createObjectURL(blob)
-    a = document.createElement("a"); a.href = href; a.download = filename; a.click()
+    a = document.createElement("a")
+    a.href = href; a.download = filename; a.click()
     URL.revokeObjectURL(href)
 
+def _strip_old_listeners(*ids) -> None:
+    """Clone elements to remove any legacy listeners attached by older builds."""
+    for _id in ids:
+        el = document.getElementById(_id)
+        clone = el.cloneNode(True)
+        el.parentNode.replaceChild(clone, el)
+
+def clear_field_errors():
+    for fid in _INPUT_FIELDS:
+        try:
+            document.getElementById(fid).classList.remove("invalid")
+        except Exception:
+            pass
+
+def field_error(fid: str, msg: str):
+    try:
+        document.getElementById(fid).classList.add("invalid")
+    except Exception:
+        pass
+    set_status(f"⚠️ {msg}")
+    raise ValueError(msg)
+
+# ---------- UI helpers ----------
 def update_tooltip(*_) -> None:
     try:
         label = document.getElementById("wtype").value
@@ -86,15 +116,17 @@ def reset_defaults(event=None) -> None:
     update_tooltip()
     set_status("Reset to defaults. Ready.")
 
+# ---------- Core ----------
 def design(event=None) -> None:
     global current
     try:
-        # Close previous figs to avoid buildup
+        # Close previous figs to avoid buildup on repeated runs
         if current and "figs" in current:
             for _f in current["figs"]:
                 try: plt.close(_f)
                 except Exception: pass
 
+        clear_field_errors()
         set_status("Designing filter…")
 
         fs = float(document.getElementById("fs").value)
@@ -108,14 +140,21 @@ def design(event=None) -> None:
         response = document.getElementById("response").value
         show_phase = bool(document.getElementById("showPhase").checked)
 
-        if fs <= 0: raise ValueError("Sampling frequency must be positive.")
-        if numtaps < 2: raise ValueError("Filter length should be 2 or greater.")
-        if lowcut <= 0 or highcut <= 0: raise ValueError("Frequencies must be > 0 Hz.")
+        # Validation with visual hints
+        if fs <= 0: field_error("fs", "Sampling frequency must be positive.")
+        if numtaps < 2: field_error("numtaps", "Filter length should be 2 or greater.")
+        if lowcut <= 0: field_error("lowcut", "Low cutoff must be greater than 0 Hz.")
+        if highcut <= 0: field_error("highcut", "High cutoff must be greater than 0 Hz.")
         nyq = fs / 2
-        if highcut >= nyq or lowcut >= nyq: raise ValueError(f"Cutoffs must be < Nyquist ({nyq} Hz).")
-        if ftype in ("Bandpass","Bandstop") and lowcut >= highcut:
-            raise ValueError("Low frequency must be less than high frequency for band filters.")
+        if lowcut >= nyq: field_error("lowcut", f"Low cutoff must be < Nyquist ({nyq} Hz).")
+        if highcut >= nyq: field_error("highcut", f"High cutoff must be < Nyquist ({nyq} Hz).")
+        if ftype in ("Bandpass", "Bandstop") and lowcut >= highcut:
+            document.getElementById("lowcut").classList.add("invalid")
+            document.getElementById("highcut").classList.add("invalid")
+            set_status("⚠️ For Bandpass/Bandstop, Low must be < High.")
+            raise ValueError("Band frequencies invalid")
 
+        # Design taps
         if ftype == "Lowpass":
             taps = firwin(numtaps, cutoff=highcut, window=wtype, fs=fs, pass_zero="lowpass")
         elif ftype == "Highpass":
@@ -131,20 +170,25 @@ def design(event=None) -> None:
 
         window_vals = get_window(wtype, numtaps, fftbins=False)
 
+        # Time domain
         t = np.arange(numtaps) / fs
         step_input = np.ones(numtaps * 3)
-        step_response = lfilter(taps, [1.0], step_input)
-        step_time = np.arange(len(step_response)) / fs
+        step_resp = lfilter(taps, [1.0], step_input)
+        step_time = np.arange(len(step_resp)) / fs
 
+        # Frequency responses
         w, h_filter = freqz(taps, worN=8192, fs=fs)
         w_win, h_window = freqz(window_vals, worN=8192, fs=fs)
 
+        # Example signal
         dur = 2.0
-        N = int(fs * dur); tt = np.arange(N) / fs
+        N = int(fs * dur)
+        tt = np.arange(N) / fs
         rng = np.random.default_rng(0)
         x = 0.9*np.sin(2*np.pi*5*tt) + 0.4*np.sin(2*np.pi*25*tt) + 0.05*rng.normal(size=N)
         y = lfilter(taps, [1.0], x)
 
+        # Plots
         plt.style.use("default")
         figs = []
 
@@ -153,7 +197,7 @@ def design(event=None) -> None:
             a1.stem(t, taps, basefmt=" ")
             a1.set_title("Impulse Response")
         else:
-            a1.plot(step_time[: numtaps*2], step_response[: numtaps*2])
+            a1.plot(step_time[: numtaps*2], step_resp[: numtaps*2])
             a1.set_title("Step Response")
         a1.set_xlabel("Time (s)"); a1.set_ylabel("Amplitude"); a1.grid(True, alpha=0.3)
         figs.append(f1)
@@ -170,7 +214,8 @@ def design(event=None) -> None:
         a3.set_ylim([-80, 5]); a3.grid(True, alpha=0.3)
         if ftype == "Lowpass": a3.axvline(x=highcut, linestyle="--", alpha=0.7)
         elif ftype == "Highpass": a3.axvline(x=lowcut, linestyle="--", alpha=0.7)
-        else: a3.axvline(x=lowcut, linestyle="--", alpha=0.7); a3.axvline(x=highcut, linestyle="--", alpha=0.7)
+        else:
+            a3.axvline(x=lowcut, linestyle="--", alpha=0.7); a3.axvline(x=highcut, linestyle="--", alpha=0.7)
         if show_phase:
             a3b = a3.twinx(); a3b.plot(w, np.unwrap(np.angle(h_filter)), linestyle="--", alpha=0.6)
             a3b.set_ylabel("Phase (rad)")
@@ -238,13 +283,20 @@ def export_plots(event=None) -> None:
     download_bytes("fir_plots.png", out_buf.getvalue(), "image/png")
     set_status("Exported combined plot PNG.")
 
+# ---------- App init ----------
 async def initialize_app():
     global _EVENTS_BOUND, _PROXIES
+
+    # Remove any legacy listeners from previous builds
+    _strip_old_listeners("designBtn", "resetBtn", "downloadCSV", "downloadPlot", "wtype")
+
+    # Ensure window options exist (in case HTML changed)
     try:
         wsel = document.getElementById("wtype")
         if wsel.length == 0:
             for k in window_map.keys():
-                opt = document.createElement("option"); opt.text = k; opt.value = k; wsel.add(opt)
+                opt = document.createElement("option")
+                opt.text = k; opt.value = k; wsel.add(opt)
             wsel.value = "Hamming"
     except Exception as e:
         console.log(f"Window select init error: {e}")
@@ -266,4 +318,5 @@ async def initialize_app():
     reset_defaults()
     design()
 
+# Kick it off
 asyncio.create_task(initialize_app())
