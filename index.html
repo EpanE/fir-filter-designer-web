@@ -9,32 +9,73 @@
   <link rel="stylesheet" href="https://pyscript.net/releases/2024.9.1/core.css" />
   <script type="module" src="https://pyscript.net/releases/2024.9.1/core.js"></script>
 
-  <!-- Inline styles (same design you have now) -->
+  <!-- Manifest (PWA) -->
+  <link rel="manifest" href="manifest.webmanifest" />
+  <meta name="theme-color" content="#0b1220" />
+
+  <!-- Styles -->
   <style>
-    :root{ --bg:#0b1220; --card:#121a2b; --muted:#94a3b8; --text:#e2e8f0; --accent:#60a5fa; }
+    /* ======= Theme system ======= */
+    :root{
+      /* dark palette (default) */
+      --bg-dark:#0b1220; --card-dark:#121a2b; --text-dark:#e2e8f0; --muted-dark:#94a3b8;
+      --accent:#60a5fa;
+      /* light palette */
+      --bg-light:#f8fafc; --card-light:#ffffff; --text-light:#0f172a; --muted-light:#475569;
+    }
+    :root{
+      /* active tokens (switch based on data-theme) */
+      --bg: var(--bg-dark);
+      --card: var(--card-dark);
+      --text: var(--text-dark);
+      --muted: var(--muted-dark);
+    }
+    :root[data-theme="light"]{
+      --bg: var(--bg-light);
+      --card: var(--card-light);
+      --text: var(--text-light);
+      --muted: var(--muted-light);
+    }
+
     html,body{height:100%}
     body{margin:0;background:var(--bg);color:var(--text);font:16px/1.45 system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
     .wrap{max-width:1200px;margin:32px auto;padding:0 16px}
-    .title{font-size:28px;font-weight:700;letter-spacing:.2px;margin:0 0 8px}
+    .row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 12px}
+    .title{font-size:28px;font-weight:700;letter-spacing:.2px;margin:0}
     .sub{color:var(--muted);margin:0 0 20px}
     .card{background:var(--card);border:1px solid rgba(255,255,255,.06);border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.3)}
     .grid{display:grid;gap:12px}
     .grid.cols-4{grid-template-columns:repeat(4,minmax(0,1fr))}
     label{display:block;font-size:12px;color:var(--muted);margin:0 0 6px}
     input,select{width:100%;box-sizing:border-box;background:#0e1626;border:1px solid rgba(255,255,255,.08);color:var(--text);border-radius:10px;padding:10px 12px}
+    :root[data-theme="light"] input,:root[data-theme="light"] select{background:#f1f5f9;border-color:#e2e8f0;color:var(--text)}
     input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(96,165,250,.2)}
     .controls{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
     button{background:linear-gradient(180deg,#1e3a8a,#1d4ed8);border:none;color:#fff;padding:10px 14px;border-radius:12px;cursor:pointer;font-weight:600}
     button.secondary{background:#0e1626;border:1px solid rgba(255,255,255,.1)}
+    :root[data-theme="light"] button.secondary{background:#f1f5f9;border-color:#e2e8f0;color:#0f172a}
+    button.small{padding:8px 10px;font-weight:600}
     button:disabled{opacity:.5;cursor:not-allowed}
     .checkbox{display:flex;align-items:center;gap:8px;margin-left:auto}
     .status{color:var(--muted);margin-top:8px;font-size:14px}
     .plots{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
     .plot{background:#0e1626;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:8px}
+    :root[data-theme="light"] .plot{background:#f1f5f9;border-color:#e2e8f0}
     .plot img{width:100%;height:auto;display:block;border-radius:8px}
     .tooltipbar{display:flex;align-items:center;gap:8px;margin-top:10px;color:#c7d2fe}
     .tiplabel{opacity:.7}
     .tiptext{opacity:.95}
+
+    /* Validation highlight */
+    .invalid{border-color:#ef4444 !important; box-shadow:0 0 0 3px rgba(239,68,68,.25) !important}
+
+    /* Help modal */
+    .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:50}
+    .modal{background:var(--card);color:var(--text);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:16px;max-width:760px;width:92%}
+    .modal h2{margin:0 0 8px}
+    .modal p,.modal li{color:var(--muted)}
+    .modal .actions{display:flex;justify-content:flex-end;margin-top:12px}
+
     /* Responsive */
     @media (max-width: 768px){
       .grid.cols-4{grid-template-columns:1fr 1fr}
@@ -49,11 +90,11 @@
     }
   </style>
 
-  <!-- Tell PyScript to fetch and run app.py ONLY -->
+  <!-- PyScript config -->
   <py-config>
     version = "2024.9.1"
     packages = ["numpy","scipy","matplotlib","pillow"]
-    plugins = []
+    plugins = []   # silence plugin probes
   </py-config>
 </head>
 <body>
@@ -65,7 +106,13 @@
   </py-loader>
 
   <div class="wrap">
-    <h1 class="title">FIR Filter Designer (Web)</h1>
+    <div class="row">
+      <h1 class="title">FIR Filter Designer (Web)</h1>
+      <div style="display:flex; gap:8px;">
+        <button id="helpBtn" class="secondary small" title="Open help">Help</button>
+        <button id="themeToggle" class="secondary small" title="Toggle light/dark">Light</button>
+      </div>
+    </div>
     <p class="sub">Browser-based FIR filter tool. Design, visualize, and export — no installation, works on GitHub Pages.</p>
 
     <div class="card">
@@ -153,7 +200,59 @@
     </div>
   </div>
 
-  <!-- Run ONLY the external Python (no inline Python here) -->
-  <py-script src="app.py?v"></py-script>
+  <!-- Help modal -->
+  <div id="helpBackdrop" class="modal-backdrop" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+      <h2 id="helpTitle">FIR Filter Designer — Help</h2>
+      <ul>
+        <li><b>Sampling Frequency (Hz):</b> Rate at which your signal is sampled.</li>
+        <li><b>Filter Length (taps):</b> Higher = sharper transitions but more delay.</li>
+        <li><b>Cutoffs:</b> Must be &lt; Nyquist (fs / 2). For band filters: Low &lt; High.</li>
+        <li><b>Window:</b> Hamming/Hann = balanced; Blackman/Blackman-Harris = more stopband attenuation; FlatTop = flat passband.</li>
+        <li><b>Response Type:</b> Choose to view Impulse or Step; “Both” shows impulse and adds phase in the freq plot if enabled.</li>
+        <li><b>Tips:</b> Odd/even taps may matter for HP/BS; try odd taps if you see ripples.</li>
+      </ul>
+      <div class="actions">
+        <button id="helpClose" class="secondary small">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Theme + Help (tiny JS, no Python) -->
+  <script>
+    (function initThemeAndHelp(){
+      const root = document.documentElement;
+      const btn = document.getElementById('themeToggle');
+      const saved = localStorage.getItem('theme');
+      const prefers = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      const theme = saved || prefers;
+      root.dataset.theme = theme;
+      btn.textContent = theme === 'light' ? 'Dark' : 'Light';
+      btn.addEventListener('click', () => {
+        const t = (root.dataset.theme === 'dark') ? 'light' : 'dark';
+        root.dataset.theme = t;
+        localStorage.setItem('theme', t);
+        btn.textContent = t === 'light' ? 'Dark' : 'Light';
+      });
+
+      // Help modal
+      const open = () => { document.getElementById('helpBackdrop').style.display = 'flex'; };
+      const close = () => { document.getElementById('helpBackdrop').style.display = 'none'; };
+      document.getElementById('helpBtn').addEventListener('click', open);
+      document.getElementById('helpClose').addEventListener('click', close);
+      document.getElementById('helpBackdrop').addEventListener('click', (e) => {
+        if (e.target.id === 'helpBackdrop') close();
+      });
+      document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+    })();
+
+    // Service Worker (PWA)
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js'));
+    }
+  </script>
+
+  <!-- Run ONLY external Python -->
+  <py-script src="app.py?v=11"></py-script>
 </body>
 </html>
