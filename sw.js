@@ -1,13 +1,13 @@
 // sw.js — simple offline-first service worker
-const CACHE = 'firfd-v1';
+const CACHE = 'firfd-v2';
 const ASSETS = [
   './',
   './index.html',
   './app.py',
-  './manifest.webmanifest',
-  // icons (add these if you include them)
+  './manifest.webmanifest?v=2',
   './icons/icon-192.png',
-  './icons/icon-512.png'
+  './icons/icon-512.png',
+  './icons/favicon-32.png'
 ];
 
 self.addEventListener('install', (e) => {
