@@ -13,7 +13,7 @@
   <link rel="manifest" href="manifest.webmanifest" />
   <meta name="theme-color" content="#0b1220" />
 
-  <!-- Styles -->
+  <!-- Styles (keeps your current design, adds theme + modal + invalid) -->
   <style>
     /* ======= Theme system ======= */
     :root{
@@ -24,7 +24,7 @@
       --bg-light:#f8fafc; --card-light:#ffffff; --text-light:#0f172a; --muted-light:#475569;
     }
     :root{
-      /* active tokens (switch based on data-theme) */
+      /* active tokens (switch via data-theme on :root) */
       --bg: var(--bg-dark);
       --card: var(--card-dark);
       --text: var(--text-dark);
@@ -94,7 +94,7 @@
   <py-config>
     version = "2024.9.1"
     packages = ["numpy","scipy","matplotlib","pillow"]
-    plugins = []   # silence plugin probes
+    plugins = []   <!-- silence plugin probes -->
   </py-config>
 </head>
 <body>
@@ -252,7 +252,7 @@
     }
   </script>
 
-  <!-- Run ONLY external Python -->
-  <py-script src="app.py?v=11"></py-script>
+  <!-- Run ONLY the external Python -->
+  <py-script src="app.py?v=12"></py-script>
 </body>
 </html>
