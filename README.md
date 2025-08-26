@@ -2,8 +2,8 @@
 
 A browser-based FIR filter playground powered by **PyScript** (NumPy/SciPy/Matplotlib in the browser). Design LP/HP/BP/BS filters with common windows, visualize responses, and export coefficients—no installs needed.
 
-**Live site:** https://epane.github.io/fir-filter-designer-web/  
-*(Replace with your Pages URL if different.)*
+**Live site:** https://epane.github.io/fir-filter-designer-web/?v=10
+* Current version is 10
 
 ---
 
