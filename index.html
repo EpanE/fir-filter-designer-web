@@ -3,15 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>IIR Speech Filter (Web)</title>
+  <title>FIR Filter Designer (Web)</title>
 
-  <!-- PWA -->
-  <link rel="manifest" href="./manifest.webmanifest">
-  <meta name="theme-color" content="#0b1220" />
-  <link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png">
-  <link rel="apple-touch-icon" sizes="192x192" href="./icons/icon-192.png">
-  <link rel="apple-touch-icon" sizes="512x512" href="./icons/icon-512.png">
+  <!-- PyScript runtime (2024.9.1) -->
+  <link rel="stylesheet" href="https://pyscript.net/releases/2024.9.1/core.css" />
+  <script type="module" src="https://pyscript.net/releases/2024.9.1/core.js"></script>
 
+  <!-- Theme + layout -->
   <style>
     :root{
       --bg:#0b1220; --card:#121a2b; --muted:#94a3b8; --text:#e2e8f0; --accent:#60a5fa; --border:rgba(255,255,255,.08)
@@ -24,39 +22,34 @@
     body{margin:0;background:var(--bg);color:var(--text);font:16px/1.45 system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif}
     .wrap{max-width:1200px;margin:24px auto;padding:0 16px}
     .header{display:flex;align-items:center;gap:8px;justify-content:space-between;margin-bottom:10px}
-    .title{font-size:22px;font-weight:800}
+    .title{font-size:24px;font-weight:800}
     .actions{display:flex;gap:8px}
-    button, .btn{
+    button{
       background:linear-gradient(180deg,#1e3a8a,#1d4ed8); color:#fff; border:none; padding:8px 12px;
       border-radius:12px; cursor:pointer; font-weight:600
     }
-    button.secondary{background:#0e1626; border:1px solid var(--border); color:var(--text)}
-    button.ghost{background:transparent; border:1px solid var(--border); color:var(--text)}
-    button:disabled{opacity:.55; cursor:not-allowed}
-    .card{background:var(--card); border:1px solid var(--border); border-radius:16px; padding:12px}
-    .grid{display:grid; gap:12px}
-    .grid.cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}
-    .grid.cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}
-    .controls{display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:10px}
-    .field{display:flex; flex-direction:column; gap:6px}
-    label{font-size:12px; color:var(--muted)}
-    input[type="number"], select{
-      width:100%; background:#0e1626; color:var(--text); border:1px solid var(--border); border-radius:10px; padding:8px 10px
+    button.secondary{background:#0e1626;border:1px solid var(--border);color:var(--text)}
+    button.ghost{background:transparent;border:1px solid var(--border);color:var(--text)}
+    button:disabled{opacity:.55;cursor:not-allowed}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:12px}
+    .grid{display:grid;gap:12px}
+    .grid.cols-4{grid-template-columns:repeat(4,minmax(0,1fr))}
+    label{display:block;font-size:12px;color:var(--muted);margin:0 0 6px}
+    input,select{
+      width:100%;background:#0e1626;color:var(--text);border:1px solid var(--border);border-radius:10px;padding:10px 12px
     }
-    html[data-theme="light"] input[type="number"], html[data-theme="light"] select{background:#f1f5f9}
-    .switches{display:flex; gap:16px; align-items:center; flex-wrap:wrap; margin-top:6px}
-    .hint{color:var(--muted); font-size:13px; margin-top:6px}
-    .btnrow{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px}
-    .panelTitle{font-size:13px; color:var(--muted); margin:0 0 6px}
-    canvas{width:100%; height:280px; display:block; background:#0e1626; border:1px solid var(--border); border-radius:10px}
-    html[data-theme="light"] canvas{background:#f8fafc}
-    .twoCols{display:grid; grid-template-columns:1fr 1fr; gap:12px}
-    .oneCol{display:block}
-    @media (max-width: 980px){ .controls{grid-template-columns:repeat(3,minmax(0,1fr))} .twoCols{grid-template-columns:1fr} }
-    @media (max-width: 640px){
-      .controls{grid-template-columns:1fr 1fr}
-      .btnrow{flex-direction:column; align-items:stretch}
-    }
+    html[data-theme="light"] input, html[data-theme="light"] select{background:#f1f5f9}
+    .controls{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+    .status{color:var(--muted);margin-top:8px;font-size:14px}
+    .plots{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+    .plot{background:#0e1626;border:1px solid var(--border);border-radius:12px;padding:8px}
+    html[data-theme="light"] .plot{background:#f8fafc}
+    .plot img{width:100%;height:auto;display:block;border-radius:8px}
+    .tooltipbar{display:flex;align-items:center;gap:8px;margin-top:10px;color:#c7d2fe}
+    .tiplabel{opacity:.7}
+    .tiptext{opacity:.95}
+    @media (max-width: 900px){ .grid.cols-4{grid-template-columns:1fr 1fr} .plots{grid-template-columns:1fr} }
+    @media (max-width: 560px){ .grid.cols-4{grid-template-columns:1fr} .title{font-size:20px} }
 
     /* Help modal */
     .modalBackdrop{position:fixed; inset:0; background:rgba(0,0,0,.6); display:none}
@@ -64,98 +57,118 @@
     .modalCard{max-width:780px; width:100%; background:var(--card); border:1px solid var(--border); border-radius:16px; padding:16px}
     .modalHeader{display:flex; align-items:center; justify-content:space-between; margin-bottom:8px}
     .closeX{background:transparent; border:1px solid var(--border); border-radius:10px; padding:6px 10px; cursor:pointer; color:var(--text)}
-    .kbd{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size:12px; background:#0e1626; color:var(--text); padding:2px 6px; border-radius:6px; border:1px solid var(--border)}
+    .kbd{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace; font-size:12px; background:#0e1626; color:var(--text); padding:2px 6px; border-radius:6px; border:1px solid var(--border)}
     html[data-theme="light"] .kbd{background:#eef2f7}
   </style>
+
+  <!-- PyScript config: load SciPy stack -->
+  <py-config>
+    version = "2024.9.1"
+    packages = ["numpy","scipy","matplotlib","pillow"]
+    plugins = []
+  </py-config>
 </head>
 <body>
+  <py-loader>
+    <div style="padding:16px; text-align:center; color:#94a3b8;">
+      <div style="margin-bottom:10px;">🔧 Loading Python runtime (PyScript)…</div>
+      <div style="font-size:14px;">First load may take 10–20s on slow networks.</div>
+    </div>
+  </py-loader>
+
   <div class="wrap">
     <div class="header">
-      <div class="title">IIR Speech Filter (Web)</div>
+      <div class="title">FIR Filter Designer (Web)</div>
       <div class="actions">
         <button id="themeToggle" class="ghost">Light/Dark</button>
         <button id="helpBtn" class="ghost">Help</button>
       </div>
     </div>
 
-    <div class="card" id="controlCard">
+    <div class="card">
+      <div class="grid cols-4">
+        <div>
+          <label>Sampling Frequency (Hz)</label>
+          <input id="fs" type="number" value="100" step="any" />
+        </div>
+        <div>
+          <label>Filter Length (taps)</label>
+          <input id="numtaps" type="number" value="64" />
+        </div>
+        <div>
+          <label>Shift Samples</label>
+          <input id="shift" type="number" value="0" />
+        </div>
+        <div>
+          <label>Response Type</label>
+          <select id="response">
+            <option>Impulse</option>
+            <option>Step</option>
+            <option>Both</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid cols-4" style="margin-top:10px;">
+        <div>
+          <label>Low Frequency (Hz)</label>
+          <input id="lowcut" type="number" value="10" step="any" />
+        </div>
+        <div>
+          <label>High Frequency (Hz)</label>
+          <input id="highcut" type="number" value="20" step="any" />
+        </div>
+        <div>
+          <label>Filter Type</label>
+          <select id="ftype">
+            <option>Lowpass</option>
+            <option>Highpass</option>
+            <option>Bandpass</option>
+            <option>Bandstop</option>
+          </select>
+        </div>
+        <div>
+          <label>Window Function</label>
+          <select id="wtype">
+            <option>Hamming</option>
+            <option>Rectangular</option>
+            <option>Triangular</option>
+            <option>Bartlett</option>
+            <option>Sine</option>
+            <option>Hann</option>
+            <option>Blackman</option>
+            <option>Nuttall</option>
+            <option>BlackmanNuttall</option>
+            <option>BlackmanHarris</option>
+            <option>FlatTop</option>
+          </select>
+        </div>
+      </div>
+
       <div class="controls">
-        <div class="field">
-          <label for="hpCut">Highpass Cutoff (Hz)</label>
-          <input id="hpCut" type="number" value="300" step="1" min="0">
-        </div>
-        <div class="field">
-          <label for="lpCut">Lowpass Cutoff (Hz)</label>
-          <input id="lpCut" type="number" value="3400" step="1" min="0">
-        </div>
-        <div class="field">
-          <label for="orderSel">HP/LP Order</label>
-          <select id="orderSel">
-            <option value="2">2</option>
-            <option value="4" selected>4</option>
-            <option value="6">6</option>
-            <option value="8">8</option>
-          </select>
-        </div>
-        <div class="field">
-          <label for="notchFreq">Notch Freq (Hz)</label>
-          <input id="notchFreq" type="number" value="50" step="1" min="20" max="100">
-        </div>
-        <div class="field">
-          <label for="notchQ">Notch Q</label>
-          <input id="notchQ" type="number" value="30" step="1" min="5" max="120">
-        </div>
-        <div class="field">
-          <label for="wavRate">WAV Save Rate</label>
-          <select id="wavRate">
-            <option value="auto" selected>Auto (native)</option>
-            <option value="16000">16k (speech)</option>
-          </select>
-        </div>
+        <button id="designBtn">Design Filter</button>
+        <button id="resetBtn" class="secondary">Reset Defaults</button>
+        <button id="downloadCSV" class="secondary" disabled>Export Coefficients (CSV)</button>
+        <button id="downloadPlot" class="secondary" disabled>Export Plots (PNG)</button>
+        <label style="display:flex;align-items:center;gap:8px;margin-left:auto">
+          <input id="showPhase" type="checkbox"> Show Phase Response
+        </label>
       </div>
 
-      <div class="switches">
-        <label><input id="applyNotch" type="checkbox"> Apply Notch</label>
-        <label><input id="showPhase" type="checkbox"> Show Phase Response</label>
-        <label><input id="enableIIR" type="checkbox" checked> Enable IIR Filter</label>
-        <label><input id="lowpassOnly" type="checkbox"> Lowpass Only</label>
-        <span class="hint">fs = <span id="fsLabel">—</span></span>
+      <div class="tooltipbar">
+        <span class="tiplabel">Window tip:</span>
+        <span id="wtip" class="tiptext">Hamming: Good frequency resolution, reduced side lobes</span>
       </div>
 
-      <div class="btnrow">
-        <button id="startMic">Start Mic</button>
-        <button id="stopMic" class="secondary">Stop Mic</button>
-        <button id="startRec" class="secondary">Start Recording</button>
-        <button id="stopRec" class="secondary">Stop Recording</button>
-        <button id="saveRec" class="secondary">Save Recordings</button>
-        <button id="playRaw" class="secondary">Play Raw</button>
-        <button id="playFiltered" class="secondary">Play Filtered</button>
-      </div>
-
-      <div class="hint" id="hint">Ready. Click “Start Mic” and allow microphone access.</div>
+      <div class="status" id="status">Ready. Set parameters and click “Design Filter”.</div>
     </div>
 
-    <div class="grid" style="margin-top:12px;">
-      <div class="twoCols">
-        <div class="card">
-          <div class="panelTitle">Spectrogram (filtered)</div>
-          <canvas id="specCanvas" width="800" height="280"></canvas>
-        </div>
-        <div class="card">
-          <div class="panelTitle">Waveform (filtered)</div>
-          <canvas id="waveCanvas" width="800" height="280"></canvas>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="panelTitle">Magnitude Response (dB)</div>
-        <canvas id="magCanvas" width="1100" height="280"></canvas>
-      </div>
-
-      <div class="card">
-        <div class="panelTitle">Phase Response (deg)</div>
-        <canvas id="phaseCanvas" width="1100" height="220"></canvas>
-      </div>
+    <div class="plots" id="plots" style="display:none;">
+      <div class="plot"><img id="plot1" alt="Time/Impulse/Step" /></div>
+      <div class="plot"><img id="plot2" alt="Window (time)" /></div>
+      <div class="plot"><img id="plot3" alt="Filter frequency response" /></div>
+      <div class="plot"><img id="plot4" alt="Window frequency response" /></div>
+      <div class="plot"><img id="plot5" alt="Example signal (raw vs filtered)" /></div>
     </div>
   </div>
 
@@ -167,32 +180,35 @@
         <h3 id="helpTitle" style="margin:0">How to Use</h3>
         <button id="helpClose" class="closeX">Close</button>
       </div>
-      <div style="color:var(--muted); font-size:14px; line-height:1.5">
+      <div style="color:var(--muted); font-size:14px; line-height:1.55">
         <ol>
-          <li>Click <span class="kbd">Start Mic</span> and allow microphone access.</li>
-          <li>Put on <b>headphones</b> to prevent feedback loops.</li>
-          <li>Adjust <b>Highpass / Lowpass</b> and <b>Order</b>. Toggle <b>Apply Notch</b> for 50/60 Hz hum.</li>
-          <li>Use <span class="kbd">Start Recording</span> → <span class="kbd">Stop Recording</span> → <span class="kbd">Save Recordings</span> to download WAV files (raw & filtered).</li>
-          <li>Pick a WAV save rate: <b>Auto</b> (native) or <b>16k</b> for speech.</li>
+          <li>Set <b>Sampling Frequency</b>, <b>Filter Length</b>, cutoffs and types.</li>
+          <li>Click <span class="kbd">Design Filter</span> to compute taps and plots.</li>
+          <li>Toggle <b>Show Phase</b> to view phase response.</li>
+          <li>Use <span class="kbd">Export Coefficients</span> for CSV + meta, and <span class="kbd">Export Plots</span> for a PNG stack.</li>
         </ol>
+        <p><b>Tips</b></p>
+        <ul>
+          <li>All cutoffs must be &lt; <b>Nyquist</b> (fs/2). For BP/BS: low &lt; high.</li>
+          <li>Even lengths can be tricky for HP/BS; try odd tap counts if you see artifacts.</li>
+          <li>Windows change sidelobes and transition width—experiment to taste.</li>
+        </ul>
         <p><b>Troubleshooting</b></p>
         <ul>
-          <li>No audio? Ensure HTTPS, allow mic permissions, and unmute the tab.</li>
-          <li>Cutoff warnings show when values exceed <b>Nyquist</b> (fs/2).</li>
-          <li>On iOS, tap Save again if the download didn’t appear.</li>
+          <li>If plots don’t appear, re-click <b>Design Filter</b> after adjusting inputs.</li>
+          <li>Very large tap counts will render more slowly.</li>
         </ul>
-        <p><b>Privacy:</b> All processing & recording happen in your browser; nothing is uploaded.</p>
+        <p><b>Privacy:</b> Everything runs locally in your browser; nothing is uploaded.</p>
       </div>
     </div>
   </div>
 
-  <!-- App + SW (version your assets to bust caches) -->
-  <script defer src="./app.js?v=9"></script>
+  <!-- Theme + Help wiring -->
   <script>
-    // Theme
+    // Theme toggle (persist)
     (function(){
+      const key = 'fir_theme';
       const root = document.documentElement;
-      const key = 'iir_theme';
       const saved = localStorage.getItem(key);
       if (saved) root.setAttribute('data-theme', saved);
       document.getElementById('themeToggle').addEventListener('click', () => {
@@ -212,15 +228,9 @@
       document.getElementById('helpClose').addEventListener('click', close);
       backdrop.addEventListener('click', close);
     })();
-
-    // Service worker
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=9')
-          .then(reg => console.log('SW registered:', reg.scope))
-          .catch(err => console.error('SW registration failed', err));
-      });
-    }
   </script>
+
+  <!-- Load the Python app (bump v to bust caches if needed) -->
+  <py-script src="app.py?v=10"></py-script>
 </body>
 </html>
